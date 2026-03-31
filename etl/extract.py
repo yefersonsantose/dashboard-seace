@@ -41,25 +41,29 @@ class OcdsExtractor:
     def _download_url(self, name: str) -> str:
         return f"{OCDS_BASE_URL}?name={name}"
 
-    def download_year(self, year: int) -> Path:
+    def download_year(self, year: int, force: bool = False) -> Path:
         """Descarga el archivo JSONL.GZ de un año y lo guarda en raw/."""
-        return self._download(f"{year}.jsonl.gz")
+        return self._download(f"{year}.jsonl.gz", force=force)
 
-    def download_full(self) -> Path:
+    def download_full(self, force: bool = False) -> Path:
         """Descarga el histórico completo (solo para carga inicial)."""
         logger.warning("Descargando histórico completo — puede tardar varios minutos.")
-        return self._download("full.jsonl.gz")
+        return self._download("full.jsonl.gz", force=force)
 
-    def _download(self, name: str) -> Path:
+    def _download(self, name: str, force: bool = False) -> Path:
         settings.ensure_dirs()
         destino = Path(settings.etl_raw_dir) / name
 
-        if destino.exists():
-            logger.info("Archivo ya existe en caché: %s", destino)
+        if destino.exists() and not force:
+            logger.info("Archivo en caché (use --force para re-descargar): %s", destino)
             return destino
 
+        if destino.exists() and force:
+            logger.info("Forzando re-descarga — eliminando caché: %s", destino)
+            destino.unlink()
+
         url = self._download_url(name)
-        logger.info("Descargando %s → %s", url, destino)
+        logger.info("Descargando datos actualizados desde SEACE: %s → %s", url, destino)
         try:
             with self.session.get(url, stream=True, timeout=120) as resp:
                 resp.raise_for_status()
@@ -110,15 +114,17 @@ class OcdsExtractor:
                         elif "releases" in record:
                             yield from record["releases"]
 
-    def extract_batch(self, year: int | None = None, full: bool = False, corrida_id: int = 0):
+    def extract_batch(self, year: int | None = None, full: bool = False,
+                      corrida_id: int = 0, force: bool = False):
         """
         Descarga y retorna todos los releases del año indicado (o histórico).
+        force=True siempre re-descarga desde SEACE aunque exista caché local.
         Retorna un iterador para no cargar todo en memoria.
         """
         if full:
-            archivo = self.download_full()
+            archivo = self.download_full(force=force)
         else:
-            archivo = self.download_year(year or datetime.utcnow().year)
+            archivo = self.download_year(year or datetime.utcnow().year, force=force)
         return self.iter_releases(archivo)
 
     def save_raw(self, releases: list[dict], corrida_id: int) -> Path:

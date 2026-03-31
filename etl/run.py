@@ -50,12 +50,24 @@ def _ensure_corridas_table(session):
             estado TEXT,
             parametros TEXT,
             registros_cargados INTEGER DEFAULT 0,
+            registros_nuevos INTEGER DEFAULT 0,
             registros_error INTEGER DEFAULT 0,
             log_resumen TEXT,
             error_detalle TEXT
         )
     """))
+    # Añadir columna si ya existía la tabla sin ella
+    try:
+        session.execute(text("ALTER TABLE etl_corridas ADD COLUMN registros_nuevos INTEGER DEFAULT 0"))
+    except Exception:
+        pass
     session.commit()
+
+
+def _contar_procesos(session) -> int:
+    """Cuenta el total actual de procesos en la base de datos."""
+    row = session.execute(text("SELECT COUNT(*) FROM procesos")).fetchone()
+    return row[0] if row else 0
 
 
 def registrar_corrida_inicio(session, parametros: dict) -> int:
@@ -78,20 +90,21 @@ def registrar_corrida_inicio(session, parametros: dict) -> int:
 
 
 def actualizar_corrida(session, corrida_id: int, estado: str, cargados: int,
-                       errores: int, log: str, error_det: str = None):
+                       errores: int, log: str, error_det: str = None, nuevos: int = 0):
     ts = "datetime('now')" if IS_SQLITE else "NOW()"
     session.execute(
         text(f"""
             UPDATE etl_corridas
             SET fin = {ts}, estado = :estado,
                 registros_cargados = :cargados,
+                registros_nuevos = :nuevos,
                 registros_error = :errores,
                 log_resumen = :log,
                 error_detalle = :error_det
             WHERE id = :id
         """),
-        {"estado": estado, "cargados": cargados, "errores": errores,
-         "log": log, "error_det": error_det, "id": corrida_id},
+        {"estado": estado, "cargados": cargados, "nuevos": nuevos,
+         "errores": errores, "log": log, "error_det": error_det, "id": corrida_id},
     )
     session.commit()
 
@@ -102,6 +115,8 @@ def parse_args():
                         help="Año a procesar (default: año actual)")
     parser.add_argument("--full", action="store_true",
                         help="Descargar histórico completo (solo carga inicial)")
+    parser.add_argument("--force", action="store_true",
+                        help="Forzar re-descarga desde SEACE aunque exista caché local")
     parser.add_argument("--batch-size", type=int, default=settings.etl_batch_size,
                         help=f"Registros por lote de carga (default: {settings.etl_batch_size})")
     return parser.parse_args()
@@ -109,7 +124,8 @@ def parse_args():
 
 def main():
     args = parse_args()
-    parametros = {"year": args.year, "full": args.full, "batch_size": args.batch_size}
+    parametros = {"year": args.year, "full": args.full, "force": args.force,
+                  "batch_size": args.batch_size}
 
     _args = {"check_same_thread": False} if IS_SQLITE else {}
     engine = create_engine(settings.database_url, pool_pre_ping=True, connect_args=_args)
@@ -119,6 +135,10 @@ def main():
     corrida_id = registrar_corrida_inicio(session, parametros)
     logger.info("=== ETL iniciado | corrida_id=%s | params=%s ===", corrida_id, parametros)
 
+    # Contar procesos ANTES para saber cuántos son nuevos al final
+    total_antes = _contar_procesos(session)
+    logger.info("Procesos en BD antes del ETL: %d", total_antes)
+
     total_cargados = total_errores = 0
     try:
         extractor = OcdsExtractor()
@@ -126,6 +146,7 @@ def main():
             year=args.year,
             full=args.full,
             corrida_id=corrida_id,
+            force=args.force,
         )
 
         # Procesar en lotes para no saturar memoria
@@ -150,11 +171,18 @@ def main():
                 total_cargados += cargados
             total_errores += len(errores)
 
+        # Calcular nuevas convocatorias reales
+        total_despues = _contar_procesos(session)
+        registros_nuevos = max(0, total_despues - total_antes)
+        logger.info("Procesos en BD después del ETL: %d | Nuevos: %d", total_despues, registros_nuevos)
+
         actualizar_corrida(
             session, corrida_id, "success", total_cargados, total_errores,
-            f"Año: {args.year} | Cargados: {total_cargados} | Errores: {total_errores}",
+            f"Año: {args.year} | Procesados: {total_cargados} | Nuevos: {registros_nuevos} | Errores: {total_errores}",
+            nuevos=registros_nuevos,
         )
-        logger.info("=== ETL finalizado | cargados=%d errores=%d ===", total_cargados, total_errores)
+        logger.info("=== ETL finalizado | cargados=%d nuevos=%d errores=%d ===",
+                    total_cargados, registros_nuevos, total_errores)
 
     except Exception as exc:
         logger.exception("ETL falló con error crítico")

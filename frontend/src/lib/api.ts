@@ -130,5 +130,5 @@ export const api = {
     fetch(`${typeof window !== "undefined" ? "/api" : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000")}/admin/etl/ejecutar`, { method: "POST" })
       .then((r) => r.json()) as Promise<{ status: string; mensaje?: string }>,
   etlEstado: () =>
-    get<{ corridas: { id: number; inicio: string; fin: string | null; estado: string; registros_cargados: number; log_resumen: string | null }[] }>("/admin/etl/estado"),
+    get<{ corridas: { id: number; inicio: string; fin: string | null; estado: string; registros_cargados: number; registros_nuevos: number; log_resumen: string | null }[] }>("/admin/etl/estado"),
 };

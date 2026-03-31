@@ -19,8 +19,8 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Ejecutar ETL del año actual
-python run.py --year %date:~-4%
+:: Ejecutar ETL del año actual (--force re-descarga desde SEACE para obtener nuevas convocatorias)
+python run.py --year %date:~-4% --force
 
 echo.
 if errorlevel 1 (

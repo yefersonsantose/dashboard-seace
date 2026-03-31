@@ -8,6 +8,7 @@ type Corrida = {
   fin: string | null;
   estado: string;
   registros_cargados: number;
+  registros_nuevos: number;
   log_resumen: string | null;
 };
 
@@ -28,7 +29,16 @@ export default function ActualizarDatos() {
         const ultima = res.corridas[0];
         if (ultima.estado !== "running") {
           setEstado(ultima.estado === "success" ? "listo" : "error");
-          setMensaje(ultima.log_resumen ?? "ETL finalizado");
+          if (ultima.estado === "success") {
+            const nuevas = ultima.registros_nuevos ?? 0;
+            setMensaje(
+              nuevas > 0
+                ? `✓ ${nuevas.toLocaleString("es-PE")} nuevas convocatorias encontradas.`
+                : "✓ Datos al día, no hay convocatorias nuevas."
+            );
+          } else {
+            setMensaje(ultima.log_resumen ?? "Error al actualizar.");
+          }
         }
       }
     } catch {
@@ -129,7 +139,8 @@ export default function ActualizarDatos() {
                 <tr className="text-gray-500 border-b">
                   <th className="text-left py-1">Inicio</th>
                   <th className="text-left py-1">Estado</th>
-                  <th className="text-right py-1">Cargados</th>
+                  <th className="text-right py-1 text-green-600">Nuevas</th>
+                  <th className="text-right py-1">Procesadas</th>
                 </tr>
               </thead>
               <tbody>
@@ -137,6 +148,9 @@ export default function ActualizarDatos() {
                   <tr key={c.id} className="border-b last:border-0">
                     <td className="py-1 pr-2 text-gray-600">{c.inicio?.slice(0, 16).replace("T", " ")}</td>
                     <td className={`py-1 font-medium ${ESTADO_COLOR[c.estado] ?? "text-gray-500"}`}>{c.estado}</td>
+                    <td className="py-1 text-right font-semibold text-green-600">
+                      {(c.registros_nuevos ?? 0) > 0 ? `+${c.registros_nuevos.toLocaleString("es-PE")}` : "—"}
+                    </td>
                     <td className="py-1 text-right text-gray-600">{c.registros_cargados?.toLocaleString("es-PE") ?? "—"}</td>
                   </tr>
                 ))}

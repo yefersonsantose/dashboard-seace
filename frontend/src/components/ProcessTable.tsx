@@ -57,7 +57,7 @@ export default function ProcessTable({ data, paginacion, loading, onPage }: Prop
                   <td className="px-3 py-2 font-mono text-xs">
                     <Link href={`/proceso/${p.codigo_seace}`} className="text-blue-600 hover:underline">{p.codigo_seace}</Link>
                   </td>
-                  <td className="px-3 py-2 max-w-[180px] truncate">{p.entidad}</td>
+                  <td className="px-3 py-2 max-w-[280px] break-words whitespace-normal leading-snug">{p.entidad}</td>
                   <td className="px-3 py-2 max-w-[320px] break-words whitespace-normal leading-snug">{p.objeto_contratacion ?? "—"}</td>
                   <td className="px-3 py-2 text-xs">{p.tipo_proceso ?? "—"}</td>
                   <td className="px-3 py-2">

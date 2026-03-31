@@ -1,0 +1,31 @@
+# Bases de datos locales
+*.db
+*.sqlite
+
+# Variables de entorno (contienen credenciales)
+.env
+.env.local
+.env.production.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node / Next.js
+node_modules/
+.next/
+
+# ETL — datos crudos (archivos grandes)
+etl/data/raw/*.gz
+etl/data/raw/*.jsonl
+etl/data/processed/
+etl/logs/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

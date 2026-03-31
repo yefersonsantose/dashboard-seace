@@ -92,6 +92,25 @@ export interface MesItem {
   monto_total: number | null;
 }
 
+/** Construye la URL de exportación Excel con los filtros activos y dispara la descarga */
+export function descargarExcel(params?: Record<string, string | number | undefined>) {
+  let url = `${typeof window !== "undefined" ? "/api" : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000")}/procesos/exportar`;
+  if (params) {
+    const qs = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== null && v !== "")
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .join("&");
+    if (qs) url += `?${qs}`;
+  }
+  // Descarga directa vía anchor
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "procesos_seace.xlsx";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
 export const api = {
   kpis: () => get<KPIs>("/kpis"),
   procesos: (params?: Record<string, string | number | undefined>) =>

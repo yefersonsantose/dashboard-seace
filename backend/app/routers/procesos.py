@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, or_
 from typing import Optional
 from datetime import date
 from math import ceil
+import io
 
 from app.database import get_db
 from app.models import Proceso, Entidad, CatEstado, CatTipoProceso, CatDistrito, CatProvincia, CatRegion
@@ -87,6 +89,119 @@ def listar_procesos(
     return ProcesosPaginados(
         data=items,
         paginacion=Paginacion(total=total, pagina=pagina, por_pagina=por_pagina, paginas=ceil(total / por_pagina) if total else 0),
+    )
+
+
+@router.get("/exportar")
+def exportar_procesos(
+    entidad: Optional[str] = None,
+    estado: Optional[str] = None,
+    tipo: Optional[str] = None,
+    nivel: Optional[str] = None,
+    departamento: Optional[str] = None,
+    provincia: Optional[str] = None,
+    monto_min: Optional[float] = None,
+    monto_max: Optional[float] = None,
+    fecha_desde: Optional[date] = None,
+    fecha_hasta: Optional[date] = None,
+    texto: Optional[str] = None,
+    ubigeo: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Exporta los procesos filtrados a un archivo Excel (.xlsx)."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    q = _build_query(db, entidad, estado, tipo, nivel, departamento, provincia,
+                     monto_min, monto_max, fecha_desde, fecha_hasta, texto, ubigeo)
+    rows = q.order_by(Proceso.fecha_convocatoria.desc()).limit(10_000).all()
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Procesos SEACE"
+
+    # ── Estilos ──────────────────────────────────────────────────────────────
+    header_fill = PatternFill("solid", fgColor="1D4ED8")   # azul oscuro
+    header_font = Font(name="Calibri", bold=True, color="FFFFFF", size=10)
+    header_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    cell_align   = Alignment(vertical="top", wrap_text=True)
+    thin = Side(style="thin", color="D1D5DB")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    # ── Encabezados ──────────────────────────────────────────────────────────
+    COLS = [
+        ("Código SEACE",    18),
+        ("Entidad",         40),
+        ("Objeto / Servicio / Obra", 55),
+        ("Tipo de Proceso", 22),
+        ("Estado",          18),
+        ("Nivel de Gobierno", 22),
+        ("Departamento",    18),
+        ("Provincia",       18),
+        ("Monto (S/)",      15),
+        ("Moneda",          10),
+        ("Fecha Convocatoria", 18),
+        ("URL SEACE",       40),
+    ]
+
+    for col_idx, (titulo, ancho) in enumerate(COLS, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=titulo)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = border
+        ws.column_dimensions[get_column_letter(col_idx)].width = ancho
+
+    ws.row_dimensions[1].height = 30
+    ws.freeze_panes = "A2"
+
+    # ── Datos ────────────────────────────────────────────────────────────────
+    fill_par  = PatternFill("solid", fgColor="EFF6FF")   # azul muy claro filas pares
+    fill_impar = PatternFill("solid", fgColor="FFFFFF")
+
+    for row_idx, r in enumerate(rows, start=2):
+        fila = [
+            r.codigo_seace,
+            r.entidad,
+            r.objeto_contratacion,
+            r.tipo_proceso,
+            r.estado,
+            r.nivel_gobierno,
+            r.departamento,
+            r.provincia,
+            r.valor_referencial,
+            r.moneda,
+            str(r.fecha_convocatoria) if r.fecha_convocatoria else None,
+            r.url_seace,
+        ]
+        fill = fill_par if row_idx % 2 == 0 else fill_impar
+        for col_idx, valor in enumerate(fila, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=valor)
+            cell.alignment = cell_align
+            cell.border = border
+            cell.fill = fill
+            # Monto: formato numérico
+            if col_idx == 9 and valor is not None:
+                cell.number_format = '#,##0.00'
+
+    # ── Autofiltro ───────────────────────────────────────────────────────────
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(COLS))}1"
+
+    # ── Stream ───────────────────────────────────────────────────────────────
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = "procesos_seace.xlsx"
+    headers = {
+        "Content-Disposition": f'attachment; filename="{filename}"',
+        "Access-Control-Expose-Headers": "Content-Disposition",
+    }
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
     )
 
 

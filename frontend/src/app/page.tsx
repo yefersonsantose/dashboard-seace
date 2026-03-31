@@ -160,7 +160,19 @@ function HomeInner() {
           {errorTabla && (
             <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 mb-4 text-sm">{errorTabla}</div>
           )}
-          <ProcessTable data={procesos} paginacion={paginacion} loading={loadingTabla} onPage={setPagina} />
+          <ProcessTable
+            data={procesos}
+            paginacion={paginacion}
+            loading={loadingTabla}
+            onPage={setPagina}
+            filtros={{
+              texto: filtros.texto, estado: filtros.estado, tipo: filtros.tipo,
+              nivel: filtros.nivel, departamento: filtros.departamento, provincia: filtros.provincia,
+              fecha_desde: filtros.fecha_desde, fecha_hasta: filtros.fecha_hasta,
+              monto_min: filtros.monto_min ? Number(filtros.monto_min) : undefined,
+              monto_max: filtros.monto_max ? Number(filtros.monto_max) : undefined,
+            }}
+          />
         </div>
       )}
 

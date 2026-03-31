@@ -1,5 +1,6 @@
 "use client";
 import type { Proceso, Paginacion } from "@/lib/api";
+import { descargarExcel } from "@/lib/api";
 import Link from "next/link";
 
 const NIVEL_COLORS: Record<string, string> = {
@@ -21,6 +22,7 @@ interface Props {
   paginacion: Paginacion | null;
   loading?: boolean;
   onPage: (p: number) => void;
+  filtros?: Record<string, string | number | undefined>;
 }
 
 function fmtMonto(n: number | null, moneda: string | null) {
@@ -28,9 +30,24 @@ function fmtMonto(n: number | null, moneda: string | null) {
   return new Intl.NumberFormat("es-PE", { style: "currency", currency: moneda ?? "PEN", maximumFractionDigits: 0 }).format(n);
 }
 
-export default function ProcessTable({ data, paginacion, loading, onPage }: Props) {
+export default function ProcessTable({ data, paginacion, loading, onPage, filtros }: Props) {
   return (
     <div className="bg-white border rounded-xl overflow-hidden">
+      {/* Barra superior: total + botón Excel */}
+      <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50">
+        <span className="text-sm text-gray-600">
+          {paginacion ? <>{paginacion.total.toLocaleString("es-PE")} <span className="font-medium">resultados encontrados</span></> : ""}
+        </span>
+        <button
+          onClick={() => descargarExcel(filtros)}
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+          </svg>
+          Descargar Excel
+        </button>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-100 text-gray-600 uppercase text-xs">

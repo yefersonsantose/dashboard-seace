@@ -7,13 +7,17 @@ const BASE =
     : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
 
 async function get<T>(path: string, params?: Record<string, string | number | undefined>): Promise<T> {
-  const url = new URL(`${BASE}${path}`);
+  // Construir query string manualmente para soportar URLs relativas (/api/...)
+  // new URL() falla con rutas relativas sin origen, por eso usamos strings.
+  let fullUrl = `${BASE}${path}`;
   if (params) {
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
-    });
+    const qs = Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== null && v !== "")
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .join("&");
+    if (qs) fullUrl += `?${qs}`;
   }
-  const res = await fetch(url.toString(), { next: { revalidate: 60 } });
+  const res = await fetch(fullUrl, { next: { revalidate: 60 } });
   if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
   return res.json();
 }

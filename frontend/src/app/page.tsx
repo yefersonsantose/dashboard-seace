@@ -8,6 +8,7 @@ import FilterPanel, { type Filtros } from "@/components/FilterPanel";
 import ProcessTable from "@/components/ProcessTable";
 import { TendenciaMensual, GraficoPorEstado, TopEntidades, GraficoPorTipo, GraficoPorNivel } from "@/components/Charts";
 import MapaPeru from "@/components/MapaPeru";
+import ActualizarDatos from "@/components/ActualizarDatos";
 
 type Tab = "tabla" | "analitica" | "mapa";
 
@@ -139,9 +140,12 @@ function HomeInner() {
 
   return (
     <div>
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Procesos de Contratación</h1>
-        <p className="text-sm text-gray-500">Fuente: SEACE — Sistema Electrónico de Contrataciones del Estado</p>
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Procesos de Contratación</h1>
+          <p className="text-sm text-gray-500">Fuente: SEACE — Sistema Electrónico de Contrataciones del Estado</p>
+        </div>
+        <ActualizarDatos />
       </div>
 
       <KPICards kpis={kpis} loading={loadingKpis} />

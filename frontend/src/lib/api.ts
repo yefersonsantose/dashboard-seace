@@ -126,4 +126,9 @@ export const api = {
   tiposProceso: () => get<Catalogo[]>("/catalogos/tipos-proceso"),
   regiones: () => get<Catalogo[]>("/catalogos/regiones"),
   nivelesGobierno: () => get<Catalogo[]>("/catalogos/niveles-gobierno"),
+  etlEjecutar: () =>
+    fetch(`${typeof window !== "undefined" ? "/api" : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000")}/admin/etl/ejecutar`, { method: "POST" })
+      .then((r) => r.json()) as Promise<{ status: string; mensaje?: string }>,
+  etlEstado: () =>
+    get<{ corridas: { id: number; inicio: string; fin: string | null; estado: string; registros_cargados: number; log_resumen: string | null }[] }>("/admin/etl/estado"),
 };

@@ -1,0 +1,67 @@
+════════════════════════════════════════════════════════════════
+  INSTRUCCIONES: Configurar envío de alertas por Gmail
+════════════════════════════════════════════════════════════════
+
+Para que el sistema pueda enviar correos desde tu cuenta Gmail
+necesitas crear una "Contraseña de aplicación" (App Password).
+Esto es necesario porque Gmail bloquea el acceso de scripts
+externos con tu contraseña normal.
+
+PASO 1 — Activar verificación en 2 pasos (si no la tienes)
+──────────────────────────────────────────────────────────────
+1. Ve a: https://myaccount.google.com/security
+2. Busca "Verificación en 2 pasos"
+3. Actívala si no está activa (requiere tu teléfono)
+
+PASO 2 — Crear una contraseña de aplicación
+──────────────────────────────────────────────────────────────
+1. Ve a: https://myaccount.google.com/apppasswords
+   (si no aparece, asegúrate de tener la verificación en 2 pasos activa)
+2. En "Seleccionar app" elige "Otra (nombre personalizado)"
+3. Escribe un nombre como: Dashboard SEACE
+4. Haz clic en "Generar"
+5. Google te mostrará una contraseña de 16 caracteres
+   Ejemplo: xxxx xxxx xxxx xxxx
+
+PASO 3 — Guardar la contraseña en el archivo .env
+──────────────────────────────────────────────────────────────
+1. Abre el archivo .env (está en la carpeta del Dashboard)
+2. Busca la línea: EMAIL_APP_PASSWORD=
+3. Pega la contraseña de 16 caracteres (con o sin espacios):
+   EMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+
+PASO 4 — Instalar la tarea programada
+──────────────────────────────────────────────────────────────
+1. Haz doble clic en: instalar_alertas_email.bat
+2. Listo — el correo se enviará automáticamente a las 6 PM
+
+PASO 5 — Probar que funciona
+──────────────────────────────────────────────────────────────
+Abre una ventana de comandos y ejecuta:
+  cd "C:\Users\USER\Desktop\DASHBOARD SEACE\etl"
+  python notificar_email.py --test
+
+Si todo está bien, recibirás un correo de prueba en minutos.
+
+════════════════════════════════════════════════════════════════
+  PERSONALIZAR PALABRAS CLAVE
+════════════════════════════════════════════════════════════════
+
+Edita el archivo alertas_config.json para cambiar:
+  - Palabras clave (puedes añadir varias)
+  - Días atrás a consultar
+  - Correo destinatario
+
+Ejemplo con varias palabras:
+{
+  "destinatario": "yeferson.santos.e@gmail.com",
+  "palabras_clave": ["PUENTE", "CARRETERA", "HOSPITAL", "ESCUELA"],
+  "dias_atras": 1
+}
+
+════════════════════════════════════════════════════════════════
+  DESINSTALAR LA ALERTA
+════════════════════════════════════════════════════════════════
+
+Para desactivar el envío automático, abre PowerShell o CMD y ejecuta:
+  schtasks /delete /tn "AlertasEmailSEACE" /f
